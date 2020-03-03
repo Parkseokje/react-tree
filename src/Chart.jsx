@@ -2,7 +2,7 @@ import React from "react";
 import { Tree } from "react-d3-tree";
 import csvdata from "./data.csv";
 import * as d3 from "d3";
-import NodeLabel from "./NodeLabel";
+// import NodeLabel from "./NodeLabel";
 import NodeLabelCard from "./NodeLabelCard";
 
 const containerStyles = {
@@ -14,7 +14,9 @@ export default class Chart extends React.PureComponent {
   state = {
     data: null,
     translate: { x: 0, y: 0 },
-    orientation: "horizontal"
+    orientation: "vertical",
+    top: 0.9,
+    collapsed: true
   };
 
   traverse(tree) {
@@ -24,19 +26,17 @@ export default class Chart extends React.PureComponent {
         return a;
       }, 0);
 
-      tree.children.forEach(child => {
-        child.attributes.pct = ((child.attributes.count / total) * 100).toFixed(1);
-
-        if (child.children) {
-          this.traverse(child);
-        }
-
-        tree.children.sort(function(a, b) {
+      tree.children.forEach(x => (x.attributes.pct = ((x.attributes.count / total) * 100).toFixed(1)));
+      tree.children = tree.children
+        .filter(x => x.attributes.count >= total * (1 - this.state.top)) // 상위 60%
+        .sort(function(a, b) {
           return b.attributes.pct - a.attributes.pct;
         });
 
-        // const max_node = tree.children.reduce((p, c) => (p.attributes.count > c.attributes.count) ? p : c)
-        // max_node.attributes.isMax = true
+      tree.children.forEach(child => {
+        if (child.children) {
+          this.traverse(child);
+        }
       });
     }
   }
@@ -53,7 +53,7 @@ export default class Chart extends React.PureComponent {
           a.push(
             (array = {
               name: item,
-              _collapsed: true,
+              _collapsed: this.state.collapsed,
               attributes: { count: 1 },
               children: []
             })
@@ -77,6 +77,7 @@ export default class Chart extends React.PureComponent {
 
   getTreeCentered() {
     const dimensions = this.treeContainer.getBoundingClientRect();
+    console.log(dimensions)
     this.setState({
       translate: {
         // x: 100,
@@ -92,19 +93,59 @@ export default class Chart extends React.PureComponent {
     this.getTreeCentered();
   }
 
+  onTopChange(e) {
+    this.setState({ top: e.target.value });
+    this.generateTreeData().then(res => {
+      this.setState({ data: res })
+      this.getTreeCentered();
+    });
+  }
+
+  onExpand(e) {
+    const { target: { checked } } = e;
+    this.setState({ collapsed: !checked })
+    this.generateTreeData().then(res => {
+      this.setState({ data: res })
+      this.getTreeCentered();
+    });
+  }
+
   render() {
     return (
       <div style={containerStyles} ref={tc => (this.treeContainer = tc)}>
-        <div className="orientation">
-          <label>orientation:</label>
-          <select
-            onClick={e => e.stopPropagation()}
-            onChange={e => this.setState({ orientation: e.target.value })}
-            value={this.state.orientation}
-          >
-            <option value="vertical">vertical</option>
-            <option value="horizontal">horizontal</option>
-          </select>
+        <div className="header">
+          <div className="orientation">
+            <label>orientation:</label>
+            <select
+              onClick={e => e.stopPropagation()}
+              onChange={e => this.setState({ orientation: e.target.value })}
+              value={this.state.orientation}
+            >
+              <option value="vertical">vertical</option>
+              <option value="horizontal">horizontal</option>
+            </select>
+          </div>
+
+          <div className="filter">
+            <label>top:</label>
+            <select onClick={e => e.stopPropagation()} onChange={e => this.onTopChange(e)} value={this.state.top}>
+              <option value="1">All</option>
+              <option value="0.1">10%</option>
+              <option value="0.2">20%</option>
+              <option value="0.3">30%</option>
+              <option value="0.4">40%</option>
+              <option value="0.5">50%</option>
+              <option value="0.6">60%</option>
+              <option value="0.7">70%</option>
+              <option value="0.8">80%</option>
+              <option value="0.9">90%</option>
+            </select>
+          </div>
+
+          <div className="expand">
+            <label>expand all:</label>
+            <input type="checkbox" checked={!this.state.collapsed} onChange={e => this.onExpand(e)} />
+          </div>
         </div>
 
         {/* <div style={{ width: size.width, height: size.height }}> */}

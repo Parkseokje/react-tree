@@ -83,6 +83,21 @@
   padding: 2px 4px;
 }
 
+.header {
+  font-size: 14px;
+  display: flex; /* Children use Flexbox */
+  flex-direction: row; /* Rotate Axis */
+  align-items: center;
+}
+
 .orientation {
+  display: flex;
+  padding: 5px 10px;
+}
+
+.top,
+.orientation,
+.expand {
+  display: flex;
   padding: 5px 10px;
 }

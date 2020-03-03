@@ -3,7 +3,7 @@ import "./App.css";
 
 class NodeLabelCard extends React.PureComponent {
   render() {
-    const { className, nodeData } = this.props;
+    const { nodeData } = this.props;
 
     return (
       <>
