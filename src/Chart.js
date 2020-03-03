@@ -1,42 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Tree } from "react-d3-tree";
 import csvdata from "./data.csv";
 import * as d3 from "d3";
+import NodeLabel from "./NodeLabel";
+import NodeLabelCard from "./NodeLabelCard";
+import { treemapResquarify } from "d3";
 
-// Hook
-function useWindowSize() {
-  const isClient = typeof window === "object";
+const containerStyles = {
+  width: "100%",
+  height: "100vh"
+};
 
-  function getSize() {
-    return {
-      width: isClient ? window.innerWidth : undefined,
-      height: isClient ? window.innerHeight : undefined
-    };
-  }
+export default class Chart extends React.PureComponent {
+  state = {
+    data: null,
+    translate: { x: 0, y: 0 }
+  };
 
-  const [windowSize, setWindowSize] = useState(getSize);
-
-  useEffect(() => {
-    if (!isClient) {
-      return false;
-    }
-
-    function handleResize() {
-      setWindowSize(getSize());
-    }
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []); // Empty array ensures that effect is only run on mount and unmount
-
-  return windowSize;
-}
-
-const Chart = () => {
-  let [data, setData] = useState({});
-  const size = useWindowSize();
-
-  const traverse = tree => {
+  traverse(tree) {
     if (tree.children) {
       const total = tree.children.reduce((a, c) => {
         a += c.attributes.count;
@@ -44,75 +25,96 @@ const Chart = () => {
       }, 0);
 
       tree.children.forEach(child => {
-        child.attributes.pct = (
-          (child.attributes.count / total) *
-          100
-        ).toFixed(2);
+        child.attributes.pct = ((child.attributes.count / total) * 100).toFixed(1);
 
         if (child.children) {
-          traverse(child);
+          this.traverse(child);
         }
+
+        tree.children.sort(function(a, b) {
+          return b.attributes.pct - a.attributes.pct;
+        });
+
+        // const max_node = tree.children.reduce((p, c) => (p.attributes.count > c.attributes.count) ? p : c)
+        // max_node.attributes.isMax = true
       });
     }
-  };
+  }
 
-  useEffect(() => {
-    async function get() {
-      let root = { name: "root", attributes: { count: 1 }, children: [] };
-      const csv = await d3.csv(csvdata);
+  async generateTreeData() {
+    let root = { name: "root", attributes: { count: 1, pct: '100.0' }, children: [] };
 
-      csv.reduce((r, s) => {
-        s.flow.split(",").reduce((a, item) => {
-          var array = a.find(v => v.name === item);
-          if (!array) {
-            a.push(
-              (array = {
-                name: item,
-                // _collapsed: true,
-                attributes: { count: 1 },
-                children: []
-              })
-            );
-          } else {
-            array.attributes.count += 1;
-          }
-          return array.children;
-        }, r);
-        return r;
-      }, root.children);
+    const csv = await d3.csv(csvdata);
 
-      root.attributes.count = root.children.reduce((a, c) => {
-        a += c.attributes.count;
-        return a;
-      }, 0);
+    csv.reduce((r, s) => {
+      s.flow.split(",").reduce((a, item) => {
+        var array = a.find(v => v.name === item);
+        if (!array) {
+          a.push(
+            (array = {
+              name: item,
+              _collapsed: true,
+              attributes: { count: 1 },
+              children: []
+            })
+          );
+        } else {
+          array.attributes.count += 1;
+        }
+        return array.children;
+      }, r);
+      return r;
+    }, root.children);
 
-      traverse(root);
-      console.log(JSON.stringify(root, null, 2));
+    root.attributes.count = root.children.reduce((a, c) => {
+      a += c.attributes.count;
+      return a;
+    }, 0);
 
-      setData(root);
-    }
+    this.traverse(root);
+    return root;
+  }
 
-    get();
-  }, []);
+  getTreeCentered() {
+    const dimensions = this.treeContainer.getBoundingClientRect();
+    this.setState({
+      translate: {
+        // x: 100,
+        y: 100,
+        x: dimensions.width / 2
+        // y: dimensions.height / 2
+      }
+    });
+  }
 
-  // const onClick = (nodeData, evt) => {
-  //   console.log(nodeData);
+  componentDidMount() {
+    this.generateTreeData().then(res => this.setState({ data: res }));
+    this.getTreeCentered();
+  }
 
-  //   if (nodeData.children) {
-  //     nodeData.children.forEach(child => {
-  //       child.attributes.pct = (
-  //         (child.attributes.count / nodeData.attributes.count) *
-  //         100
-  //       ).toFixed(2);
-  //     });
-  //   }
-  // };
-
-  return (
-    <div style={{ width: size.width, height: size.height }}>
-      <Tree transitionDuration={0} useCollapseData={true} data={data} />
-    </div>
-  );
-};
-
-export default Chart;
+  render() {
+    return (
+      <div style={containerStyles} ref={tc => (this.treeContainer = tc)}>
+        {/* <div style={{ width: size.width, height: size.height }}> */}
+        {this.state.data ? (
+          <Tree
+            transitionDuration={0}
+            useCollapseData={true}
+            data={this.state.data}
+            translate={this.state.translate}
+            // orientation={"vertical"}
+            allowForeignObjects
+            shouldCollapseNeighborNodes={true}
+            nodeLabelComponent={{
+              render: <NodeLabelCard />,
+              foreignObjectWrapper: {
+                x: -50,
+                y: 24
+              }
+            }}
+          />
+        ) : null}
+      </div>
+    );
+  }
+}
