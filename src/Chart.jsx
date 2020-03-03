@@ -4,7 +4,6 @@ import csvdata from "./data.csv";
 import * as d3 from "d3";
 import NodeLabel from "./NodeLabel";
 import NodeLabelCard from "./NodeLabelCard";
-import { treemapResquarify } from "d3";
 
 const containerStyles = {
   width: "100%",
@@ -14,7 +13,8 @@ const containerStyles = {
 export default class Chart extends React.PureComponent {
   state = {
     data: null,
-    translate: { x: 0, y: 0 }
+    translate: { x: 0, y: 0 },
+    orientation: "horizontal"
   };
 
   traverse(tree) {
@@ -42,7 +42,7 @@ export default class Chart extends React.PureComponent {
   }
 
   async generateTreeData() {
-    let root = { name: "root", attributes: { count: 1, pct: '100.0' }, children: [] };
+    let root = { name: "root", attributes: { count: 1, pct: "100.0" }, children: [] };
 
     const csv = await d3.csv(csvdata);
 
@@ -95,6 +95,18 @@ export default class Chart extends React.PureComponent {
   render() {
     return (
       <div style={containerStyles} ref={tc => (this.treeContainer = tc)}>
+        <div className="orientation">
+          <label>orientation:</label>
+          <select
+            onClick={e => e.stopPropagation()}
+            onChange={e => this.setState({ orientation: e.target.value })}
+            value={this.state.orientation}
+          >
+            <option value="vertical">vertical</option>
+            <option value="horizontal">horizontal</option>
+          </select>
+        </div>
+
         {/* <div style={{ width: size.width, height: size.height }}> */}
         {this.state.data ? (
           <Tree
@@ -102,7 +114,7 @@ export default class Chart extends React.PureComponent {
             useCollapseData={true}
             data={this.state.data}
             translate={this.state.translate}
-            // orientation={"vertical"}
+            orientation={this.state.orientation}
             allowForeignObjects
             shouldCollapseNeighborNodes={true}
             nodeLabelComponent={{
