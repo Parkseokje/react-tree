@@ -19,7 +19,7 @@ export default class Chart extends React.PureComponent {
     percentage_lower_limit: 20,
     last_applied_filter: "top",
     collapsed: true,
-    display_count: 10
+    display_count: 5
   };
 
   traverse(tree) {
@@ -44,8 +44,10 @@ export default class Chart extends React.PureComponent {
 
       const others = tree.children.slice(this.state.display_count);
 
-      if (others && others.length) {
+      if (others && others.length && tree.name === 'root') {
         tree.children.splice(this.state.display_count, tree.children.length - this.state.display_count);
+
+        console.log(others)
 
         const { count, pct } = others.reduce(
           (p, c) => {
@@ -155,7 +157,9 @@ export default class Chart extends React.PureComponent {
 
   onDisplayCountChange(e) {
     if (e && e.target && e.target.value) this.setState({ display_count: parseInt(e.target.value) });
+  }
 
+  onDisplayCountApply() {
     this.generateTreeData(this.state.last_applied_filter).then(res => {
       this.setState({ data: res });
       this.getTreeCentered();
@@ -227,8 +231,8 @@ export default class Chart extends React.PureComponent {
 
           <div className="filter number-input">
             <label>display count : </label>
-            <input type="number" value={this.state.display_count} onChange={e => this.onDisplayCountChange(e)} />
-            <button className="apply" onClick={() => this.onDisplayCountChange()}>
+            <input type="text" value={this.state.display_count} onChange={e => this.onDisplayCountChange(e)} />
+            <button className="apply" onClick={() => this.onDisplayCountApply()}>
               apply
             </button>
           </div>

@@ -106,6 +106,6 @@
   margin-left: 4px;
 }
 
-.number-input > input[type=number] {
+.number-input > input[type=text] {
   width: 40px;
 }
