@@ -44,7 +44,7 @@ export default class Chart extends React.PureComponent {
 
       const others = tree.children.slice(this.state.display_count);
 
-      if (others && others.length && tree.name === 'root') {
+      if (others && others.length) {
         tree.children.splice(this.state.display_count, tree.children.length - this.state.display_count);
 
         console.log(others)
