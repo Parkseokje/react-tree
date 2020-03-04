@@ -16,11 +16,12 @@ export default class Chart extends React.PureComponent {
     translate: { x: 0, y: 0 },
     orientation: "vertical",
     top: 0.9,
-    collapsed: true,
-    percentage_lower_limit: 20
+    percentage_lower_limit: 20,
+    last_applied_filter: "top",
+    collapsed: true
   };
 
-  traverse(tree, filter) {
+  traverse(tree) {
     if (tree.children) {
       const total = tree.children.reduce((a, c) => {
         a += c.attributes.count;
@@ -29,11 +30,11 @@ export default class Chart extends React.PureComponent {
 
       tree.children.forEach(x => (x.attributes.pct = ((x.attributes.count / total) * 100).toFixed(1)));
 
-      if (filter === "top")
+      if (this.state.last_applied_filter === "top" && this.state.top < 1)
         tree.children = tree.children.filter(x => x.attributes.count >= total * (1 - this.state.top));
       // 상위 60%
-      else if (filter === "percentage") {
-        tree.children = tree.children.filter(x => x.attributes.pct >= this.state.percentage_lower_limit); // pct가 percentage_lower_limit와 같거나 큰값
+      else if (this.state.last_applied_filter === "percentage") {
+        tree.children = tree.children.filter(x => x.attributes.pct >= this.state.percentage_lower_limit);
       }
 
       tree.children.sort(function(a, b) {
@@ -42,13 +43,13 @@ export default class Chart extends React.PureComponent {
 
       tree.children.forEach(child => {
         if (child.children) {
-          this.traverse(child, filter);
+          this.traverse(child);
         }
       });
     }
   }
 
-  async generateTreeData(filter = "top") {
+  async generateTreeData() {
     let root = { name: "root", attributes: { count: 1, pct: "100.0" }, children: [] };
 
     const csv = await d3.csv(csvdata);
@@ -78,13 +79,12 @@ export default class Chart extends React.PureComponent {
       return a;
     }, 0);
 
-    this.traverse(root, filter);
+    this.traverse(root, this.state.last_applied_filter);
     return root;
   }
 
   getTreeCentered() {
     const dimensions = this.treeContainer.getBoundingClientRect();
-    console.log(dimensions);
 
     this.setState({ translate: { x: 0, y: 0 } });
     this.setState({
@@ -101,16 +101,20 @@ export default class Chart extends React.PureComponent {
   }
 
   onTopChange(e) {
-    this.setState({ top: parseFloat(e.target.value) });
-    this.generateTreeData('top').then(res => {
+    if (e && e.target && e.target.value) this.setState({ top: parseFloat(e.target.value) });
+
+    this.setState({ last_applied_filter: "top" });
+    this.generateTreeData().then(res => {
       this.setState({ data: res });
       this.getTreeCentered();
     });
   }
 
   onPercentageLowerLimitChange(e) {
-    this.setState({ percentage_lower_limit: parseInt(e.target.value) });
-    this.generateTreeData('percentage').then(res => {
+    if (e && e.target && e.target.value) this.setState({ percentage_lower_limit: parseInt(e.target.value) });
+
+    this.setState({ last_applied_filter: "percentage" });
+    this.generateTreeData().then(res => {
       this.setState({ data: res });
       this.getTreeCentered();
     });
@@ -121,7 +125,7 @@ export default class Chart extends React.PureComponent {
       target: { checked }
     } = e;
     this.setState({ collapsed: !checked });
-    this.generateTreeData().then(res => {
+    this.generateTreeData(this.state.last_applied_filter).then(res => {
       this.setState({ data: res });
       this.getTreeCentered();
     });
@@ -157,6 +161,9 @@ export default class Chart extends React.PureComponent {
               <option value="0.8">80%</option>
               <option value="0.9">90%</option>
             </select>
+            <button className="apply" onClick={() => this.onTopChange()}>
+              apply
+            </button>
           </div>
 
           <div className="percentage">
@@ -177,6 +184,9 @@ export default class Chart extends React.PureComponent {
               <option value="80">80%</option>
               <option value="90">90%</option>
             </select>
+            <button className="apply" onClick={() => this.onPercentageLowerLimitChange()}>
+              apply
+            </button>
           </div>
 
           <div className="expand">
