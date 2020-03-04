@@ -96,14 +96,16 @@
   padding: 5px 10px;
 }
 
-.top,
-.percentage,
-.orientation,
-.expand {
+.filter {
   display: flex;
   padding: 5px 10px;
+  font-weight: 600;
 }
 
 .apply {
   margin-left: 4px;
+}
+
+.number-input > input[type=number] {
+  width: 40px;
 }

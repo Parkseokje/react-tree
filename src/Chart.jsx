@@ -18,7 +18,8 @@ export default class Chart extends React.PureComponent {
     top: 0.9,
     percentage_lower_limit: 20,
     last_applied_filter: "top",
-    collapsed: true
+    collapsed: true,
+    display_count: 10
   };
 
   traverse(tree) {
@@ -28,7 +29,7 @@ export default class Chart extends React.PureComponent {
         return a;
       }, 0);
 
-      tree.children.forEach(x => (x.attributes.pct = ((x.attributes.count / total) * 100).toFixed(1)));
+      tree.children.forEach(x => (x.attributes.pct = parseFloat(((x.attributes.count / total) * 100).toFixed(1))));
 
       if (this.state.last_applied_filter === "top" && this.state.top < 1)
         tree.children = tree.children.filter(x => x.attributes.count >= total * (1 - this.state.top));
@@ -40,6 +41,27 @@ export default class Chart extends React.PureComponent {
       tree.children.sort(function(a, b) {
         return b.attributes.pct - a.attributes.pct;
       });
+
+      const others = tree.children.slice(this.state.display_count);
+
+      if (others && others.length) {
+        tree.children.splice(this.state.display_count, tree.children.length - this.state.display_count);
+
+        const { count, pct } = others.reduce(
+          (p, c) => {
+            // console.log(p, c)
+            p.count += c.attributes.count;
+            p.pct += c.attributes.pct;
+            return p;
+          },
+          { count: 0, pct: 0 }
+        );
+
+        tree.children.push({
+          name: "others",
+          attributes: { count, pct: parseFloat(pct.toFixed(2)) }
+        });
+      }
 
       tree.children.forEach(child => {
         if (child.children) {
@@ -131,11 +153,20 @@ export default class Chart extends React.PureComponent {
     });
   }
 
+  onDisplayCountChange(e) {
+    if (e && e.target && e.target.value) this.setState({ display_count: parseInt(e.target.value) });
+
+    this.generateTreeData(this.state.last_applied_filter).then(res => {
+      this.setState({ data: res });
+      this.getTreeCentered();
+    });
+  }
+
   render() {
     return (
       <div style={containerStyles} ref={tc => (this.treeContainer = tc)}>
         <div className="header">
-          <div className="orientation">
+          <div className="filter">
             <label>orientation : </label>
             <select
               onClick={e => e.stopPropagation()}
@@ -166,8 +197,8 @@ export default class Chart extends React.PureComponent {
             </button>
           </div>
 
-          <div className="percentage">
-            <label>OR greater then : </label>
+          <div className="filter">
+            <label>greater then : </label>
             <select
               onClick={e => e.stopPropagation()}
               onChange={e => this.onPercentageLowerLimitChange(e)}
@@ -189,9 +220,17 @@ export default class Chart extends React.PureComponent {
             </button>
           </div>
 
-          <div className="expand">
+          <div className="filter">
             <label>expand all:</label>
             <input type="checkbox" checked={!this.state.collapsed} onChange={e => this.onExpand(e)} />
+          </div>
+
+          <div className="filter number-input">
+            <label>display count : </label>
+            <input type="number" value={this.state.display_count} onChange={e => this.onDisplayCountChange(e)} />
+            <button className="apply" onClick={() => this.onDisplayCountChange()}>
+              apply
+            </button>
           </div>
         </div>
 
