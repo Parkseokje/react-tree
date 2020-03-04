@@ -88,6 +88,7 @@
   display: flex; /* Children use Flexbox */
   flex-direction: row; /* Rotate Axis */
   align-items: center;
+  margin: 10px 0;
 }
 
 .orientation {
@@ -96,6 +97,7 @@
 }
 
 .top,
+.percentage,
 .orientation,
 .expand {
   display: flex;

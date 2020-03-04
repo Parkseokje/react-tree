@@ -16,10 +16,11 @@ export default class Chart extends React.PureComponent {
     translate: { x: 0, y: 0 },
     orientation: "vertical",
     top: 0.9,
-    collapsed: true
+    collapsed: true,
+    percentage_lower_limit: 20
   };
 
-  traverse(tree) {
+  traverse(tree, filter) {
     if (tree.children) {
       const total = tree.children.reduce((a, c) => {
         a += c.attributes.count;
@@ -27,21 +28,27 @@ export default class Chart extends React.PureComponent {
       }, 0);
 
       tree.children.forEach(x => (x.attributes.pct = ((x.attributes.count / total) * 100).toFixed(1)));
-      tree.children = tree.children
-        .filter(x => x.attributes.count >= total * (1 - this.state.top)) // 상위 60%
-        .sort(function(a, b) {
-          return b.attributes.pct - a.attributes.pct;
-        });
+
+      if (filter === "top")
+        tree.children = tree.children.filter(x => x.attributes.count >= total * (1 - this.state.top));
+      // 상위 60%
+      else if (filter === "percentage") {
+        tree.children = tree.children.filter(x => x.attributes.pct >= this.state.percentage_lower_limit); // pct가 percentage_lower_limit와 같거나 큰값
+      }
+
+      tree.children.sort(function(a, b) {
+        return b.attributes.pct - a.attributes.pct;
+      });
 
       tree.children.forEach(child => {
         if (child.children) {
-          this.traverse(child);
+          this.traverse(child, filter);
         }
       });
     }
   }
 
-  async generateTreeData() {
+  async generateTreeData(filter = "top") {
     let root = { name: "root", attributes: { count: 1, pct: "100.0" }, children: [] };
 
     const csv = await d3.csv(csvdata);
@@ -71,19 +78,19 @@ export default class Chart extends React.PureComponent {
       return a;
     }, 0);
 
-    this.traverse(root);
+    this.traverse(root, filter);
     return root;
   }
 
   getTreeCentered() {
     const dimensions = this.treeContainer.getBoundingClientRect();
-    console.log(dimensions)
+    console.log(dimensions);
+
+    this.setState({ translate: { x: 0, y: 0 } });
     this.setState({
       translate: {
-        // x: 100,
         y: 100,
         x: dimensions.width / 2
-        // y: dimensions.height / 2
       }
     });
   }
@@ -94,18 +101,28 @@ export default class Chart extends React.PureComponent {
   }
 
   onTopChange(e) {
-    this.setState({ top: e.target.value });
-    this.generateTreeData().then(res => {
-      this.setState({ data: res })
+    this.setState({ top: parseFloat(e.target.value) });
+    this.generateTreeData('top').then(res => {
+      this.setState({ data: res });
+      this.getTreeCentered();
+    });
+  }
+
+  onPercentageLowerLimitChange(e) {
+    this.setState({ percentage_lower_limit: parseInt(e.target.value) });
+    this.generateTreeData('percentage').then(res => {
+      this.setState({ data: res });
       this.getTreeCentered();
     });
   }
 
   onExpand(e) {
-    const { target: { checked } } = e;
-    this.setState({ collapsed: !checked })
+    const {
+      target: { checked }
+    } = e;
+    this.setState({ collapsed: !checked });
     this.generateTreeData().then(res => {
-      this.setState({ data: res })
+      this.setState({ data: res });
       this.getTreeCentered();
     });
   }
@@ -115,7 +132,7 @@ export default class Chart extends React.PureComponent {
       <div style={containerStyles} ref={tc => (this.treeContainer = tc)}>
         <div className="header">
           <div className="orientation">
-            <label>orientation:</label>
+            <label>orientation : </label>
             <select
               onClick={e => e.stopPropagation()}
               onChange={e => this.setState({ orientation: e.target.value })}
@@ -127,7 +144,7 @@ export default class Chart extends React.PureComponent {
           </div>
 
           <div className="filter">
-            <label>top:</label>
+            <label>top : </label>
             <select onClick={e => e.stopPropagation()} onChange={e => this.onTopChange(e)} value={this.state.top}>
               <option value="1">All</option>
               <option value="0.1">10%</option>
@@ -139,6 +156,26 @@ export default class Chart extends React.PureComponent {
               <option value="0.7">70%</option>
               <option value="0.8">80%</option>
               <option value="0.9">90%</option>
+            </select>
+          </div>
+
+          <div className="percentage">
+            <label>OR greater then : </label>
+            <select
+              onClick={e => e.stopPropagation()}
+              onChange={e => this.onPercentageLowerLimitChange(e)}
+              value={this.state.percentage_lower_limit}
+            >
+              <option value="0">All</option>
+              <option value="10">10%</option>
+              <option value="20">20%</option>
+              <option value="30">30%</option>
+              <option value="40">40%</option>
+              <option value="50">50%</option>
+              <option value="60">60%</option>
+              <option value="70">70%</option>
+              <option value="80">80%</option>
+              <option value="90">90%</option>
             </select>
           </div>
 
